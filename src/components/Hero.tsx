@@ -4,6 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HeroPathLeftSvg, HeroPathRightSvg } from "./svgs";
+import HeroEngineSvg from "./HeroEngineSvg";
 
 export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
@@ -25,46 +26,30 @@ export default function Hero() {
       hero.querySelectorAll(".hero-path-svg-left svg path, .hero-path-svg-right svg path")
     ) as SVGPathElement[];
 
-    // B. Line-by-Line Heading Splitting (Natural lines or word wrapping)
+    // B. Line-by-Line Heading Splitting (Clean 2 lines on desktop, 3 lines on mobile matching reference)
     let linesList: HTMLElement[] = [];
     headings.forEach((heading) => {
-      const rawText = heading.textContent?.trim() || "";
-      if (rawText && !heading.querySelector(".hero-line")) {
-        // Measure natural line wrapping using inline words
-        const words = rawText.split(/\s+/);
-        heading.innerHTML = words
-          .map((w) => `<span class="hero-temp-w" style="display:inline-block;white-space:nowrap;">${w}&nbsp;</span>`)
-          .join("");
+      const isMobile = window.innerWidth <= 768;
+      const linesData = isMobile
+        ? ["BUILD,", "MARKET &", "SCALE"]
+        : ["BUILD, MARKET &", "SCALE"];
 
-        const wordEls = Array.from(heading.querySelectorAll(".hero-temp-w")) as HTMLElement[];
-        const linesMap = new Map<number, HTMLElement[]>();
+      heading.innerHTML = "";
+      linesData.forEach((lineText) => {
+        const mask = document.createElement("span");
+        mask.className = "hero-line-mask";
+        mask.style.display = "block";
+        mask.style.overflow = "hidden";
 
-        wordEls.forEach((w) => {
-          const top = Math.round(w.offsetTop);
-          if (!linesMap.has(top)) {
-            linesMap.set(top, []);
-          }
-          linesMap.get(top)!.push(w);
-        });
+        const lineSpan = document.createElement("span");
+        lineSpan.className = "hero-line";
+        lineSpan.style.display = "block";
+        lineSpan.style.willChange = "transform, opacity";
+        lineSpan.textContent = lineText;
 
-        heading.innerHTML = "";
-        linesMap.forEach((wordsInLine) => {
-          const lineText = wordsInLine.map((w) => w.textContent).join("").trim();
-          const mask = document.createElement("span");
-          mask.className = "hero-line-mask";
-          mask.style.display = "block";
-          mask.style.overflow = "hidden";
-
-          const lineSpan = document.createElement("span");
-          lineSpan.className = "hero-line";
-          lineSpan.style.display = "block";
-          lineSpan.style.willChange = "transform, opacity";
-          lineSpan.textContent = lineText;
-
-          mask.appendChild(lineSpan);
-          heading.appendChild(mask);
-        });
-      }
+        mask.appendChild(lineSpan);
+        heading.appendChild(mask);
+      });
 
       const lines = Array.from(heading.querySelectorAll(".hero-line")) as HTMLElement[];
       gsap.set(heading, { opacity: 1 });
@@ -83,10 +68,12 @@ export default function Hero() {
         gsap.set(pillTextEl, { y: "105%", opacity: 0 });
       }
 
+      const isTwo = pill.classList.contains("two");
       gsap.set(pill, {
         opacity: 0,
         scale: 0.4,
         y: 20,
+        xPercent: isTwo ? -50 : 0,
         transformOrigin: "center center",
         willChange: "transform, opacity",
       });
@@ -163,7 +150,23 @@ export default function Hero() {
       }
     });
 
-    // 3. Animate Hero SVG Paths (draw 0 -> 100% & strokeWidth 0 -> origWidth)
+    // 3. Animate Hero Troupe Video / Characters
+    const heroVideoBg = hero.querySelector<HTMLElement>(".hero-video-bg");
+    if (heroVideoBg) {
+      gsap.set(heroVideoBg, { opacity: 0, y: 35 });
+      heroTl.to(
+        heroVideoBg,
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.85,
+          ease: "power2.out",
+        },
+        0.25
+      );
+    }
+
+    // 4. Animate Hero SVG Paths (draw 0 -> 100% & strokeWidth 0 -> origWidth)
     if (pathData.length) {
       pathData.forEach((item, pIdx) => {
         const startTime = totalLinesTime * 0.4 + pIdx * 0.15;
@@ -290,16 +293,10 @@ export default function Hero() {
         <div className="hero-text">
           <div className="hero-pill two">
             <span className="hero-pill-text-mask">
-              <span className="hero-pill-text">To Right Audience</span>
-            </span>
-          </div>
-          <div className="hero-pill two">
-            <span className="hero-pill-text-mask">
               <span className="hero-pill-text">NexusCzar Studio</span>
             </span>
           </div>
-          <h1 className="heading line-1">BUILD, MARKET &amp;</h1>
-          <h1 className="heading line-2">SCALE</h1>
+          <h1 className="heading">BUILD, MARKET &amp; SCALE</h1>
           <div className="hero-pill one">
             <span className="hero-pill-text-mask">
               <span className="hero-pill-text">Web &amp; Custom Apps</span>
@@ -312,7 +309,14 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* 2. Decorative Animated SVG Paths */}
+        {/* 2. Hero Interactive Digital Engine (Build, Market & Scale System) */}
+        <div className="hero-video-bg">
+          <div className="hero-video-loop">
+            <HeroEngineSvg />
+          </div>
+        </div>
+
+        {/* 3. Decorative Animated SVG Paths */}
         <div className="hero-path-svg-left">
           <div className="code-embed-3 w-embed">
             <HeroPathLeftSvg />
@@ -341,7 +345,7 @@ export default function Hero() {
                 />
 
                 {/* SVG Mask for Right-to-Left Text Reveal */}
-                <mask id="hero-marquee-text-mask" maskUnits="userSpaceOnUse">
+                <mask id="hero-marquee-text-mask" maskUnits="userSpaceOnUse" x="-20%" y="-20%" width="140%" height="140%">
                   <path
                     className="hero-marquee-mask-path"
                     d="M-43.0867 292.81C179.631 174.299 464.078 116.458 712.699 90.6403C934.59 67.5984 1166.5 74.6231 1436.89 105.117"
