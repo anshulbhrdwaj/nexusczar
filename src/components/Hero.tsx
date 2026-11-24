@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { HeroPathLeftSvg, HeroPathRightSvg } from "./svgs";
-import HeroEngineSvg from "./HeroEngineSvg";
+import HeroCapabilities from "./HeroCapabilities";
 
 export default function Hero() {
   const heroRef = useRef<HTMLElement>(null);
@@ -309,10 +309,10 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* 2. Hero Interactive Digital Engine (Build, Market & Scale System) */}
+        {/* 2. Build, Market & Scale capability previews */}
         <div className="hero-video-bg">
           <div className="hero-video-loop">
-            <HeroEngineSvg />
+            <HeroCapabilities />
           </div>
         </div>
 

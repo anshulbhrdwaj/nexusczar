@@ -1,79 +1,18 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { CtaArrowSvg } from "./svgs";
-
-const projectsData = [
-  {
-    id: 1,
-    name: "MAZUMA INDIA",
-    category: "FinTech & Corporate Tax Engine",
-    link: "https://www.nexusczar.com/projects",
-    logo: "/nexusczar/mazumaindia.png",
-    mainImg: "/nexusczar/projects/project1_main.jpg",
-    hoverImg: "/nexusczar/projects/project1_hover.jpg",
-    svgColor: "#172957",
-  },
-  {
-    id: 2,
-    name: "OREA HOMES",
-    category: "Verified Real Estate Marketplace",
-    link: "https://www.nexusczar.com/projects",
-    logo: "/nexusczar/oreahomes.png",
-    mainImg: "/nexusczar/projects/project2_main.jpg",
-    hoverImg: "/nexusczar/projects/project2_hover.jpg",
-    svgColor: "#2f849c",
-  },
-  {
-    id: 3,
-    name: "MAZUMA REALTY",
-    category: "Luxury Property & Space Tours",
-    link: "https://www.nexusczar.com/projects",
-    logo: "/nexusczar/mazumarealty.png",
-    mainImg: "/nexusczar/projects/project3_main.jpg",
-    hoverImg: "/nexusczar/projects/project3_hover.jpg",
-    svgColor: "#36a4bf",
-  },
-  {
-    id: 4,
-    name: "ADVIKA CREATIONS",
-    category: "Turnkey Commercial Architecture",
-    link: "https://www.nexusczar.com/projects",
-    logo: "/nexusczar/advikacreations.png",
-    mainImg: "/nexusczar/projects/project4_main.jpg",
-    hoverImg: "/nexusczar/projects/project4_hover.jpg",
-    svgColor: "#36a4bf",
-  },
-  {
-    id: 5,
-    name: "HH BUILDTECH",
-    category: "Civil Engineering Infrastructure ERP",
-    link: "https://www.nexusczar.com/projects",
-    logo: "/nexusczar/hhbpl.png",
-    mainImg: "/nexusczar/projects/project5_main.jpg",
-    hoverImg: "/nexusczar/projects/project5_hover.jpg",
-    svgColor: "#172957",
-  },
-  {
-    id: 6,
-    name: "DR. HARISH PAL",
-    category: "Specialist Surgical Care (Dubai & UAE)",
-    link: "https://www.nexusczar.com/projects",
-    logo: "/nexusczar/harishpal.png",
-    mainImg: "/nexusczar/projects/project6_main.jpg",
-    hoverImg: "/nexusczar/projects/project6_hover.jpg",
-    svgColor: "#2f849c",
-  },
-];
+import { projectsData } from "./projectData";
 
 const MASK_PATH_D =
   "M25.007 729.507C25.007 729.507 136.507 1065.7 290.007 969.007C506.711 832.495 -164.765 175.16 89.5069 44.5066C315.057 -71.3883 462.507 559.507 615.507 515.007C768.507 470.507 615.507 25.0068 615.507 25.0068";
 const TARGET_STROKE_WIDTH = 1200;
 
 export default function Projects({ hideHeader = false }: { hideHeader?: boolean } = {}) {
+  const brushId = useId();
   const sectionRef = useRef<HTMLElement>(null);
   const headingWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -188,7 +127,6 @@ export default function Projects({ hideHeader = false }: { hideHeader?: boolean 
       const imgWrapper = card.querySelector(".project-card-img-wrapper") as HTMLElement | null;
       if (!imgWrapper) return;
 
-      const hoverImg = imgWrapper.querySelector(".project-img-hover") as HTMLImageElement | null;
       const svgContainer = imgWrapper.querySelector(".project-img-svg") as HTMLElement | null;
       const arrowTarget = card.querySelector(".projects-arrow svg") as SVGElement | null;
 
@@ -205,42 +143,12 @@ export default function Projects({ hideHeader = false }: { hideHeader?: boolean 
         }
       }
 
-      let maskBrushPath: SVGPathElement | null = null;
-      if (hoverImg) {
-        const imgSrc = hoverImg.src || hoverImg.getAttribute("src") || "";
-        hoverImg.style.display = "none";
-
-        const maskId = `project-brush-mask-${index}`;
-        const maskSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        maskSvg.setAttribute("class", "project-card-mask-overlay");
-        maskSvg.setAttribute("viewBox", "0 0 709 1012");
-        maskSvg.setAttribute("preserveAspectRatio", "xMidYMid slice");
-        maskSvg.style.position = "absolute";
-        maskSvg.style.inset = "0";
-        maskSvg.style.width = "100%";
-        maskSvg.style.height = "100%";
-        maskSvg.style.pointerEvents = "none";
-        maskSvg.style.zIndex = "3";
-        maskSvg.style.overflow = "visible";
-
-        maskSvg.innerHTML = `
-          <defs>
-            <mask id="${maskId}" maskUnits="userSpaceOnUse" x="-200" y="-200" width="1109" height="1412">
-              <path class="mask-brush-path" d="${MASK_PATH_D}" stroke="#FFFFFF" stroke-width="0" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-            </mask>
-          </defs>
-          <image href="${imgSrc}" xlink:href="${imgSrc}" x="0" y="0" width="709" height="1012" preserveAspectRatio="xMidYMid slice" mask="url(#${maskId})" />
-        `;
-
-        imgWrapper.appendChild(maskSvg);
-
-        maskBrushPath = maskSvg.querySelector(".mask-brush-path");
-        if (maskBrushPath) {
-          const mLen = maskBrushPath.getTotalLength ? maskBrushPath.getTotalLength() : 2500;
-          maskBrushPath.style.strokeDasharray = `${mLen}`;
-          maskBrushPath.style.strokeDashoffset = `${mLen}`;
-          maskBrushPath.style.strokeWidth = "0px";
-        }
+      const maskBrushPath = imgWrapper.querySelector<SVGPathElement>(".mask-brush-path");
+      if (maskBrushPath) {
+        const length = maskBrushPath.getTotalLength();
+        maskBrushPath.style.strokeDasharray = `${length}`;
+        maskBrushPath.style.strokeDashoffset = `${length}`;
+        maskBrushPath.style.strokeWidth = "0px";
       }
 
       if (arrowTarget) {
@@ -373,78 +281,104 @@ export default function Projects({ hideHeader = false }: { hideHeader?: boolean 
           </div>
         </div>
 
-        {/* 6 Vertical Project Cards */}
+        {/* Project artwork and details */}
         <div className="projects-vertical-wrapper">
           <div className="projects-list-wrapper w-dyn-list">
             <div role="list" className="projects-list w-dyn-items">
-              {projectsData.map((project) => (
-                <div key={project.id} role="listitem" className="project-item w-dyn-item">
-                  <Link href={project.link} className="project-card w-inline-block">
-                    <div className="project-card-img-wrapper">
-                      {/* Hover image (wrapped into SVG brush mask on client mount) */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={project.hoverImg}
-                        alt=""
-                        className="project-img-hover"
-                        loading="lazy"
-                      />
+              {projectsData.map((project) => {
+                const maskId = `${brushId}-${project.id}`;
+                return (
+                  <div key={project.id} role="listitem" className="project-item w-dyn-item">
+                    <Link href={project.link} className="project-card w-inline-block">
+                      <div className="project-card-img-wrapper">
+                        {/* Foreground Brush SVG */}
+                        <div style={{ color: project.svgColor }} className="project-img-svg w-embed">
+                          <svg width="100%" height="100%" viewBox="0 0 728 1020" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path
+                              d="M25.002 153.857C25.002 153.857 151.002 -28.0122 236.002 40.3572C351.002 132.857 -86.2292 534.598 62.5019 617.857C173.257 679.857 466.502 -70.1428 646.002 40.3572C889.446 190.221 -74.3269 862.107 151.002 983.857C337.002 1084.36 526.502 453.148 665.002 551.357C803.502 649.566 415.502 926.187 501.002 983.857C586.502 1041.53 703.002 794.357 703.002 794.357"
+                              stroke="currentColor"
+                              strokeWidth="50"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </div>
 
-                      {/* Foreground Brush SVG */}
-                      <div style={{ color: project.svgColor }} className="project-img-svg w-embed">
-                        <svg width="100%" height="100%" viewBox="0 0 728 1020" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path
-                            d="M25.002 153.857C25.002 153.857 151.002 -28.0122 236.002 40.3572C351.002 132.857 -86.2292 534.598 62.5019 617.857C173.257 679.857 466.502 -70.1428 646.002 40.3572C889.446 190.221 -74.3269 862.107 151.002 983.857C337.002 1084.36 526.502 453.148 665.002 551.357C803.502 649.566 415.502 926.187 501.002 983.857C586.502 1041.53 703.002 794.357 703.002 794.357"
-                            stroke="currentColor"
-                            strokeWidth="50"
-                            strokeLinecap="round"
+                        {/* Base Image */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={project.artwork}
+                          alt=""
+                          className="project-img"
+                          width={1440}
+                          height={1080}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <svg
+                          className="project-card-mask-overlay"
+                          viewBox="0 0 709 1012"
+                          preserveAspectRatio="xMidYMid slice"
+                          aria-hidden="true"
+                        >
+                          <defs>
+                            <mask id={maskId} maskUnits="userSpaceOnUse" x="-200" y="-200" width="1109" height="1412">
+                              <path
+                                className="mask-brush-path"
+                                d={MASK_PATH_D}
+                                stroke="#fff"
+                                strokeWidth="0"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                fill="none"
+                              />
+                            </mask>
+                          </defs>
+                          <image
+                            href={project.artwork}
+                            x="-43"
+                            y="-61"
+                            width="795"
+                            height="1134"
+                            preserveAspectRatio="xMidYMid slice"
+                            mask={`url(#${maskId})`}
                           />
                         </svg>
                       </div>
 
-                      {/* Base Image */}
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={project.mainImg}
-                        alt=""
-                        className="project-img"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    <div className="project-detail">
-                      <div className="project-logo">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={project.logo}
-                          alt=""
-                          className="project-logo-img"
-                          loading="lazy"
-                        />
-                      </div>
-                      <div className="project-detail-header">
-                        <div className="project-detail-btm">
-                          <div className="project-name-text">{project.name}</div>
+                      <div className="project-detail">
+                        <div className="project-logo">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={project.logo}
+                            alt=""
+                            className="project-logo-img"
+                            loading="lazy"
+                          />
                         </div>
-                        <div className="project-detail-text">{project.category}</div>
-                      </div>
-                      <div className="projects-arrow">
-                        <div className="code-embed-7 w-embed">
-                          <svg width="100%" height="auto" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path
-                              d="M1.17273 17.9405L18.6533 2.29983M5.84177 1.17288L18.6533 2.29983L18.3543 15.1573"
-                              stroke="currentColor"
-                              strokeWidth="2.34564"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                        <div className="project-detail-header">
+                          <div className="project-detail-btm">
+                            <div className="project-name-text">{project.name}</div>
+                          </div>
+                          <div className="project-detail-text">{project.category}</div>
+                        </div>
+                        <div className="projects-arrow">
+                          <div className="code-embed-7 w-embed">
+                            <svg width="100%" height="auto" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <path
+                                d="M1.17273 17.9405L18.6533 2.29983M5.84177 1.17288L18.6533 2.29983L18.3543 15.1573"
+                                stroke="currentColor"
+                                strokeWidth="2.34564"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                </div>
-              ))}
+                    </Link>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

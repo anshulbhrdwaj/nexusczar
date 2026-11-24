@@ -1,7 +1,7 @@
 "use client";
 
-import HeroEngineSvg from "./HeroEngineSvg";
+import HeroCapabilities from "./HeroCapabilities";
 
 export default function HeroCharactersSvg() {
-  return <HeroEngineSvg />;
+  return <HeroCapabilities />;
 }
