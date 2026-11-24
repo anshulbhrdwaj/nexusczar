@@ -100,58 +100,74 @@ export default function AboutStoryTeam() {
     const container = containerRef.current;
     if (!container) return;
 
-    // 1. Scrubbed Path Stroke Draw
-    const scrollPath = container.querySelector(
-      ".about-story-scroll-path svg path"
-    ) as SVGPathElement | null;
+    const motion = gsap.matchMedia(container);
+    motion.add("(prefers-reduced-motion: no-preference)", () => {
+      const storyPath = container.querySelector(".about-story-line");
 
-    if (scrollPath) {
-      scrollPath.style.strokeLinecap = "round";
-      scrollPath.style.strokeLinejoin = "round";
-      const pathLength = scrollPath.getTotalLength
-        ? scrollPath.getTotalLength()
-        : 3500;
-      scrollPath.style.strokeDasharray = `${pathLength} ${pathLength}`;
-      scrollPath.style.strokeDashoffset = `${pathLength}`;
-
-      const w = window.innerWidth;
-      const baseStrokeWidth = w < 768 ? 50 : w < 992 ? 75 : 100;
-      gsap.set(scrollPath, { strokeWidth: baseStrokeWidth });
-
-      gsap.to(scrollPath, {
-        strokeDashoffset: 0,
-        ease: "none",
-        scrollTrigger: {
-          trigger: container,
-          start: "top 80%",
-          end: "bottom bottom",
-          scrub: 0.8,
-        },
-      });
-    }
-
-    // 2. Story Sections Entrance
-    const storySections = Array.from(
-      container.querySelectorAll(".about-story-section")
-    ) as HTMLElement[];
-
-    storySections.forEach((section) => {
-      const img = section.querySelector(".about-story-img");
-      const text = section.querySelector(".about-story-right");
-
-      if (img && text) {
+      if (storyPath) {
         gsap.fromTo(
-          [img, text],
-          { opacity: 0, y: 45 },
+          storyPath,
+          { attr: { "stroke-dasharray": "1 1", "stroke-dashoffset": 1 } },
+          {
+            attr: { "stroke-dashoffset": 0 },
+            ease: "none",
+            scrollTrigger: {
+              trigger: container,
+              start: "top 80%",
+              end: "bottom bottom",
+              scrub: 0.8,
+            },
+          },
+        );
+      }
+
+      // Story and team entrances
+      const storySections = Array.from(
+        container.querySelectorAll(".about-story-section")
+      ) as HTMLElement[];
+
+      storySections.forEach((section) => {
+        const img = section.querySelector(".about-story-img");
+        const text = section.querySelector(".about-story-right");
+
+        if (img && text) {
+          gsap.fromTo(
+            [img, text],
+            { opacity: 0, y: 45 },
+            {
+              opacity: 1,
+              y: 0,
+              duration: 0.85,
+              stagger: 0.15,
+              ease: "back.out(1.4)",
+              scrollTrigger: {
+                trigger: section,
+                start: "top 75%",
+                once: true,
+              },
+            }
+          );
+        }
+      });
+
+      const teamCards = Array.from(
+        container.querySelectorAll(".team-card")
+      ) as HTMLElement[];
+
+      if (teamCards.length) {
+        gsap.fromTo(
+          teamCards,
+          { opacity: 0, y: 55, scale: 0.92 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.85,
-            stagger: 0.15,
-            ease: "back.out(1.4)",
+            scale: 1,
+            duration: 0.75,
+            stagger: 0.14,
+            ease: "back.out(1.6)",
             scrollTrigger: {
-              trigger: section,
-              start: "top 75%",
+              trigger: container.querySelector(".about-team-btm"),
+              start: "top 80%",
               once: true,
             },
           }
@@ -159,30 +175,7 @@ export default function AboutStoryTeam() {
       }
     });
 
-    // 3. Team Cards Entrance
-    const teamCards = Array.from(
-      container.querySelectorAll(".team-card")
-    ) as HTMLElement[];
-
-    if (teamCards.length) {
-      gsap.fromTo(
-        teamCards,
-        { opacity: 0, y: 55, scale: 0.92 },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.75,
-          stagger: 0.14,
-          ease: "back.out(1.6)",
-          scrollTrigger: {
-            trigger: ".about-team-btm",
-            start: "top 80%",
-            once: true,
-          },
-        }
-      );
-    }
+    return () => motion.revert();
   }, []);
 
   // Open modal with physical elastic expansion from source card
@@ -306,10 +299,11 @@ export default function AboutStoryTeam() {
           <div className="about-story-section">
             <div className="about-story-svg-wrap">
               <Image
-                src="/nexusczar/illustration_5.svg"
+                src="/nexusczar/about-story.webp"
                 alt="NexusCzar Origin"
-                width={380}
-                height={380}
+                width={1536}
+                height={1620}
+                sizes="(max-width: 479px) 30vw, (max-width: 767px) 55vw, (max-width: 1920px) 47vw, 900px"
                 className="about-story-img"
               />
             </div>
@@ -369,6 +363,7 @@ export default function AboutStoryTeam() {
                     alt={member.name}
                     width={450}
                     height={560}
+                    sizes="(max-width: 479px) 80vw, (max-width: 1920px) 32vw, 615px"
                     className="team-img"
                   />
                 </div>
@@ -382,19 +377,18 @@ export default function AboutStoryTeam() {
         </div>
       </div>
 
-      {/* Long Scrubbed Path */}
-      <div className="about-story-scroll-path">
-        <div className="about-story-svg w-embed">
+      <div className="about-story-scroll-path" aria-hidden="true">
+        <div className="about-story-svg">
           <svg
             width="100%"
             height="auto"
             viewBox="0 0 1440 3457"
             fill="none"
-            overflow="visible"
-            style={{ overflow: "visible" }}
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
+              className="about-story-line"
+              pathLength={1}
               d="M723.846 50.0081C650.835 174.483 836.793 262.47 825.385 406.936C799.653 732.805 98.5142 598.392 111.169 948.003C123.495 1288.51 1122.55 1135.95 1155.5 1698.51C1177.93 2081.41 570.052 2505.13 400.796 2311.05C308.932 2205.72 378.305 2027.34 533.817 2045.1C673.838 2061.1 699.146 2203.11 688.426 2277.8C675.634 2366.928 651.903 2474.012 637.786 2590.066"
               stroke="#2f849c"
               strokeWidth="100"

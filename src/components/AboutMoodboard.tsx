@@ -20,16 +20,10 @@ const row2Images = [
   "/nexusczar/moodboard/10a.jpg",
 ];
 
-interface SliderState {
-  wrapper: HTMLElement;
-  track: HTMLElement;
-  initialSlides: HTMLElement[];
-  baseDirection: number;
-  setWidth: number;
-  x: number;
-  hoverFactor: number;
-  measureSetWidth: () => number;
-}
+const imageRows = [row1Images, row2Images];
+const BASE_SPEED = 1.35;
+const FRAME_MS = 1000 / 60;
+const REST_THRESHOLD = 0.01;
 
 export default function AboutMoodboard() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -38,169 +32,173 @@ export default function AboutMoodboard() {
     const section = sectionRef.current;
     if (!section) return;
 
-    const sliderWrappers = Array.from(
-      section.querySelectorAll(".moodboard-slider-wrapper")
-    ) as HTMLElement[];
-    if (!sliderWrappers.length) return;
+    const motion = gsap.matchMedia(section);
+    motion.add("(prefers-reduced-motion: no-preference)", () => {
+      const canHover = window.matchMedia("(hover: hover) and (min-width: 992px)");
+      const rows = [...section.querySelectorAll<HTMLElement>(".moodboard-slider-wrapper")]
+        .flatMap((wrapper, index) => {
+          const track = wrapper.querySelector<HTMLElement>(".moodboard-slider");
+          const group = track?.querySelector<HTMLElement>(".moodboard-slide-group");
+          if (!track || !group) return [];
 
-    const BASE_SPEED = 1.35;
-    let currentScrollMultiplier = 1;
-    let targetScrollMultiplier = 1;
-    let velocityBoost = 0;
-    let lastScrollY = window.scrollY;
+          return [{
+            wrapper,
+            track,
+            group,
+            width: group.getBoundingClientRect().width,
+            direction: index === 0 ? -1 : 1,
+            x: 0,
+            hover: { factor: 1, changing: false },
+            loop: null as Animation | null,
+          }];
+        });
 
-    const handleScroll = () => {
-      const currentY = window.scrollY;
-      const diff = currentY - lastScrollY;
-      if (diff > 0.5) {
-        targetScrollMultiplier = 1;
-      } else if (diff < -0.5) {
-        targetScrollMultiplier = -1;
-      }
-      velocityBoost = Math.min(Math.abs(diff) * 0.15, 8);
-      lastScrollY = currentY;
-    };
+      type Row = (typeof rows)[number];
+      let currentDirection = 1;
+      let targetDirection = 1;
+      let velocityBoost = 0;
+      let lastScrollY = window.scrollY;
+      let visible = false;
+      let ticking = false;
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
+      const render = (row: Row) => {
+        row.track.style.transform = `translate3d(${row.x}px, 0, 0)`;
+      };
 
-    const slidersData: SliderState[] = [];
+      // Steady motion runs on the compositor. GSAP only drives the short speed transitions.
+      const startLoop = (row: Row) => {
+        if (!visible || row.loop || !row.width || row.hover.factor === 0) return;
+        const duration = row.width * FRAME_MS / BASE_SPEED;
+        const reverse = row.direction * currentDirection > 0;
+        const phase = Math.abs(row.x) / row.width;
 
-    sliderWrappers.forEach((wrapper, index) => {
-      const track = wrapper.querySelector(".moodboard-slider") as HTMLElement | null;
-      if (!track) return;
+        row.loop = row.track.animate(
+          [{ transform: "translateX(0)" }, { transform: "translateX(-50%)" }],
+          { duration, iterations: Infinity, direction: reverse ? "reverse" : "normal" },
+        );
+        row.loop.currentTime = (reverse ? 1 - phase : phase) * duration;
+      };
 
-      const initialSlides = Array.from(
-        track.querySelectorAll(".moodboard-slide:not(.is-marquee-clone)")
-      ) as HTMLElement[];
-      if (!initialSlides.length) return;
+      const stopLoop = (row: Row) => {
+        if (!row.loop) return;
+        const progress = row.loop.effect?.getComputedTiming().progress;
+        if (typeof progress === "number") {
+          row.x = -progress * row.width;
+          render(row);
+        }
+        row.loop.cancel();
+        row.loop = null;
+      };
 
-      // Top slider (index 0) moves LEFT (-1), Bottom slider (index 1) moves RIGHT (+1)
-      const baseDirection = index % 2 === 0 ? -1 : 1;
+      const tick = (_time: number, delta: number) => {
+        const frames = Math.min(delta, 50) / FRAME_MS;
+        currentDirection += (targetDirection - currentDirection) * (1 - 0.94 ** frames);
+        velocityBoost *= 0.92 ** frames;
 
-      // Remove any previous clones
-      track.querySelectorAll(".is-marquee-clone").forEach((c) => c.remove());
+        rows.forEach((row) => {
+          if (!row.width || row.hover.factor === 0) return;
+          const step = (BASE_SPEED + velocityBoost) * row.direction * currentDirection * row.hover.factor;
+          row.x = gsap.utils.wrap(-row.width, 0, row.x + step * frames);
+          render(row);
+        });
 
-      // Clone at least one set to measure true distance
-      initialSlides.forEach((slide) => {
-        const clone = slide.cloneNode(true) as HTMLElement;
-        clone.classList.add("is-marquee-clone");
-        track.appendChild(clone);
+        const settled = Math.abs(targetDirection - currentDirection) < REST_THRESHOLD && velocityBoost < REST_THRESHOLD;
+        if (settled && rows.every((row) => !row.hover.changing)) {
+          currentDirection = targetDirection;
+          velocityBoost = 0;
+          gsap.ticker.remove(tick);
+          ticking = false;
+          rows.forEach(startLoop);
+        }
+      };
+
+      const wake = () => {
+        if (!visible || ticking) return;
+        rows.forEach(stopLoop);
+        ticking = true;
+        gsap.ticker.add(tick);
+      };
+
+      const handleScroll = () => {
+        const currentY = window.scrollY;
+        const distance = currentY - lastScrollY;
+        if (Math.abs(distance) > 0.5) targetDirection = Math.sign(distance);
+        velocityBoost = Math.min(Math.abs(distance) * 0.15, 8);
+        lastScrollY = currentY;
+        wake();
+      };
+
+      const removeHoverHandlers = rows.map((row) => {
+        const setHover = gsap.quickTo(row.hover, "factor", {
+          duration: 0.65,
+          ease: "power2.out",
+          onComplete: () => { row.hover.changing = false; },
+        });
+        const hoverTo = (factor: number) => {
+          if (row.hover.factor === factor && !row.hover.changing) return;
+          row.hover.changing = true;
+          setHover(factor);
+          wake();
+        };
+        const pause = () => { if (canHover.matches) hoverTo(0); };
+        const resume = () => hoverTo(1);
+        row.wrapper.addEventListener("pointerenter", pause);
+        row.wrapper.addEventListener("pointerleave", resume);
+        return () => {
+          row.wrapper.removeEventListener("pointerenter", pause);
+          row.wrapper.removeEventListener("pointerleave", resume);
+          setHover.tween.kill();
+        };
       });
 
-      const measureSetWidth = () => {
-        const firstClone = track.querySelector(".is-marquee-clone") as HTMLElement | null;
-        if (firstClone && initialSlides[0]) {
-          const origLeft = initialSlides[0].getBoundingClientRect().left;
-          const cloneLeft = firstClone.getBoundingClientRect().left;
-          const exactDist = Math.abs(cloneLeft - origLeft);
-          if (exactDist > 0) return exactDist;
+      const resizeObserver = new ResizeObserver((entries) => {
+        entries.forEach((entry) => {
+          const row = rows.find(({ group }) => group === entry.target);
+          const width = entry.borderBoxSize[0]?.inlineSize ?? entry.target.getBoundingClientRect().width;
+          if (!row || row.width === width) return;
+
+          stopLoop(row);
+          row.x = row.width ? row.x * width / row.width : 0;
+          row.width = width;
+          render(row);
+          if (!ticking) startLoop(row);
+        });
+      });
+      rows.forEach((row) => resizeObserver.observe(row.group));
+
+      const stop = () => {
+        visible = false;
+        gsap.ticker.remove(tick);
+        ticking = false;
+        window.removeEventListener("scroll", handleScroll);
+        rows.forEach(stopLoop);
+      };
+
+      const visibilityObserver = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) {
+          visible = true;
+          lastScrollY = window.scrollY;
+          currentDirection = targetDirection;
+          velocityBoost = 0;
+          if (rows.some((row) => row.hover.changing)) wake();
+          else rows.forEach(startLoop);
+          window.addEventListener("scroll", handleScroll, { passive: true });
+        } else {
+          stop();
         }
+      });
+      visibilityObserver.observe(section.querySelector(".div-block-3") ?? section);
 
-        const style = window.getComputedStyle(track);
-        const gap = parseFloat(style.gap || style.columnGap || "0") || 0;
-        let sum = 0;
-        initialSlides.forEach((s) => {
-          sum += (s.offsetWidth || s.getBoundingClientRect().width) + gap;
-        });
-        return sum || 1200;
+      return () => {
+        visibilityObserver.disconnect();
+        resizeObserver.disconnect();
+        stop();
+        removeHoverHandlers.forEach((cleanup) => cleanup());
+        rows.forEach((row) => { row.track.style.removeProperty("transform"); });
       };
-
-      let setWidth = measureSetWidth();
-
-      // Duplicate sets until track >= 3.5x viewport width
-      const minTrackWidth = window.innerWidth * 3.5 + (setWidth || 1000);
-      let currentTrackWidth = setWidth * 2;
-
-      while (currentTrackWidth < minTrackWidth && setWidth > 0) {
-        initialSlides.forEach((slide) => {
-          const clone = slide.cloneNode(true) as HTMLElement;
-          clone.classList.add("is-marquee-clone");
-          track.appendChild(clone);
-        });
-        currentTrackWidth += setWidth;
-      }
-
-      const sliderState: SliderState = {
-        wrapper,
-        track,
-        initialSlides,
-        baseDirection,
-        setWidth,
-        x: 0,
-        hoverFactor: 1,
-        measureSetWidth,
-      };
-
-      // Desktop hover slow-down
-      const isTouch = matchMedia("(pointer: coarse)").matches || window.innerWidth < 992;
-      if (!isTouch) {
-        wrapper.addEventListener("mouseenter", () => {
-          gsap.to(sliderState, {
-            hoverFactor: 0,
-            duration: 0.65,
-            ease: "power2.out",
-            overwrite: "auto",
-          });
-        });
-
-        wrapper.addEventListener("mouseleave", () => {
-          gsap.to(sliderState, {
-            hoverFactor: 1,
-            duration: 0.65,
-            ease: "power2.out",
-            overwrite: "auto",
-          });
-        });
-      }
-
-      slidersData.push(sliderState);
     });
 
-    // Continuous tick loop
-    const tick = () => {
-      currentScrollMultiplier +=
-        (targetScrollMultiplier - currentScrollMultiplier) * 0.06;
-      velocityBoost *= 0.92;
-
-      slidersData.forEach((item) => {
-        if (item.setWidth <= 0) return;
-
-        const effectiveDir = item.baseDirection * currentScrollMultiplier;
-        const currentSpeed =
-          (BASE_SPEED + velocityBoost) * effectiveDir * item.hoverFactor;
-
-        item.x += currentSpeed;
-
-        while (item.x <= -item.setWidth) {
-          item.x += item.setWidth;
-        }
-        while (item.x >= 0) {
-          item.x -= item.setWidth;
-        }
-
-        gsap.set(item.track, {
-          x: item.x,
-          force3D: true,
-        });
-      });
-    };
-
-    gsap.ticker.add(tick);
-
-    const handleResize = () => {
-      slidersData.forEach((item) => {
-        const newWidth = item.measureSetWidth();
-        if (newWidth > 0) item.setWidth = newWidth;
-      });
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      gsap.ticker.remove(tick);
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
-    };
+    return () => motion.revert();
   }, []);
 
   return (
@@ -215,41 +213,32 @@ export default function AboutMoodboard() {
         </div>
 
         <div className="div-block-3">
-          {/* Row 1 Slider */}
-          <div className="moodboard-slider-wrapper">
-            <div className="moodboard-slider">
-              {row1Images.map((src, i) => (
-                <div key={i} className="moodboard-slide">
-                  <Image
-                    src={src}
-                    alt={`Culture & Craft ${i + 1}`}
-                    width={480}
-                    height={360}
-                    className="moodboard-img"
-                    sizes="(max-width: 768px) 80vw, 480px"
-                  />
-                </div>
-              ))}
+          {imageRows.map((images, rowIndex) => (
+            <div key={images[0]} className="moodboard-slider-wrapper">
+              <div className="moodboard-slider">
+                {[false, true].map((duplicate) => (
+                  <div
+                    key={String(duplicate)}
+                    className="moodboard-slide-group"
+                    aria-hidden={duplicate || undefined}
+                  >
+                    {images.map((src, imageIndex) => (
+                      <div key={src} className="moodboard-slide">
+                        <Image
+                          src={src}
+                          alt={duplicate ? "" : `Culture & Craft ${rowIndex * images.length + imageIndex + 1}`}
+                          width={480}
+                          height={360}
+                          className="moodboard-img"
+                          sizes="(max-width: 479px) 50vw, (max-width: 767px) 35vw, (max-width: 991px) 31vw, (max-width: 1920px) 28vw, (max-width: 2666px) 534px, 20vw"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Row 2 Slider */}
-          <div className="moodboard-slider-wrapper">
-            <div className="moodboard-slider">
-              {row2Images.map((src, i) => (
-                <div key={i} className="moodboard-slide">
-                  <Image
-                    src={src}
-                    alt={`Culture & Craft ${i + 6}`}
-                    width={480}
-                    height={360}
-                    className="moodboard-img"
-                    sizes="(max-width: 768px) 80vw, 480px"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>

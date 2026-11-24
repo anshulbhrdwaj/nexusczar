@@ -25,16 +25,14 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     });
 
-    // Connect Lenis with GSAP ScrollTrigger
+    // Expose the scroll controls for the contact modal and browser diagnostics.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).lenis = lenis;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).ScrollTrigger = ScrollTrigger;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).gsap = gsap;
-    lenis.on("scroll", ScrollTrigger.update);
-    window.addEventListener("scroll", ScrollTrigger.update, { passive: true });
-
+    // ScrollTrigger already observes the native scroll events produced by Lenis.
     const tickerCallback = (time: number) => {
       lenis.raf(time * 1000);
     };
@@ -42,16 +40,7 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
     gsap.ticker.add(tickerCallback);
     gsap.ticker.lagSmoothing(0);
 
-    const handleResize = () => {
-      lenis.resize();
-      ScrollTrigger.refresh();
-    };
-
-    window.addEventListener("resize", handleResize);
-
     return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("scroll", ScrollTrigger.update);
       gsap.ticker.remove(tickerCallback);
       lenis.destroy();
     };

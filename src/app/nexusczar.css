@@ -4973,6 +4973,15 @@ textarea.w-select {
   position: relative;
 }
 
+.about-hero-line-mask,
+.about-hero-line-mask > span {
+  display: block;
+}
+
+.about-hero-line-mask {
+  overflow: hidden;
+}
+
 .about-hero-path {
   justify-content: center;
   align-items: center;
@@ -5269,24 +5278,36 @@ textarea.w-select {
 .moodboard-slider-wrapper {
   scrollbar-width: none;
   width: 100%;
-  overflow: auto;
+  overflow: clip;
 }
 
 .moodboard-slider {
-  grid-column-gap: 0.5em;
-  grid-row-gap: 0.5em;
-  justify-content: flex-start;
-  align-items: center;
   display: flex;
+  width: max-content;
+}
+
+.moodboard-slide-group {
+  display: flex;
+  gap: 0.5em;
+  padding-inline-end: 0.5em;
 }
 
 .moodboard-slide {
   border-radius: 1em;
-  width: 25em;
-  min-width: 25em;
-  height: 25em;
-  min-height: 25em;
+  width: max(25em, 20vw);
+  aspect-ratio: 1;
+  flex: none;
   overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moodboard-slider-wrapper {
+    overflow: auto hidden;
+  }
+
+  .moodboard-slide-group[aria-hidden] {
+    display: none;
+  }
 }
 
 .moodboard-img {
@@ -5372,6 +5393,7 @@ textarea.w-select {
 }
 
 .section-values-wrapper {
+  --value-card-step: 5em;
   grid-column-gap: 0em;
   grid-row-gap: 0em;
   width: 100%;
@@ -5399,7 +5421,20 @@ textarea.w-select {
   padding-top: 2em;
   padding-bottom: 0;
   display: flex;
-  position: relative;
+  position: sticky;
+  top: calc(5em + var(--value-card-index) * var(--value-card-step));
+  z-index: calc(10 + var(--value-card-index) * 10);
+}
+
+.values-sticky-spacer {
+  width: 100%;
+  flex: none;
+}
+
+@media (max-width: 767px) {
+  .section-values-wrapper {
+    --value-card-step: 3em;
+  }
 }
 
 .value-heading {
@@ -5449,7 +5484,7 @@ textarea.w-select {
   transform-style: preserve-3d;
   position: absolute;
   inset: 0% 0% auto;
-  transform: scale3d(0.5, 1, 1);
+  transform: scaleX(1);
 }
 
 .about-story-svg {
@@ -5459,6 +5494,22 @@ textarea.w-select {
   display: block;
   overflow: visible;
   transform: translate(0, -5%);
+}
+
+.about-story-svg svg {
+  display: block;
+}
+
+@media (max-width: 991px) {
+  .about-story-line {
+    stroke-width: 75;
+  }
+}
+
+@media (max-width: 767px) {
+  .about-story-line {
+    stroke-width: 50;
+  }
 }
 
 .about-story-team-wrapper {
@@ -6359,9 +6410,6 @@ textarea.w-select {
   .moodboard-slide {
     border-radius: 0.75em;
     width: 16em;
-    min-width: 16em;
-    height: 16em;
-    min-height: 16em;
   }
 
   .value-heading {
@@ -7013,9 +7061,6 @@ textarea.w-select {
 
   .moodboard-slide {
     width: 12em;
-    min-width: 12em;
-    height: 12em;
-    min-height: 12em;
   }
 
   .section-what-we-do-wrapper {
